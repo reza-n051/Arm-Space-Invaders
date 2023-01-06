@@ -1,0 +1,7 @@
+LCD    : Output   => PD8-PD14 
+KeyPad : EXTI_R   => PD0,PD2,PD4,PD6  , 
+		 Output_C => PD1,PD3,PD5,PD7 
+LED    : Output   => PC1
+Volume : ADC2,IN1 => PA4
+Buzzer : TIM2-CH2 => PA1
+UART   : USART3   => PB10-PB11 (Baud_Rate = 9600)
