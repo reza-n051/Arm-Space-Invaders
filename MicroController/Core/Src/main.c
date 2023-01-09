@@ -50,6 +50,7 @@ RTC_HandleTypeDef hrtc;
 
 SPI_HandleTypeDef hspi1;
 
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart3;
@@ -70,6 +71,7 @@ static void MX_ADC2_Init(void);
 static void MX_RTC_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
@@ -120,17 +122,18 @@ int main(void)
   MX_RTC_Init();
   MX_TIM2_Init();
   MX_USART3_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, 1);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, 1);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, 1);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, 1);
+//  Init_Keypad();
+
   LiquidCrystal(GPIOD, GPIO_PIN_8, GPIO_PIN_9, GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_13, GPIO_PIN_14);
   begin(20,4);
-  setCursor(1, 1);
-  print("HI");
+  HAL_TIM_Base_Start_IT(&htim1);
+//  setCursor(1, 1);
+//  print("HI");
 //  Init_Buzzer_PWM(&htim2,TIM_CHANNEL_2);
 //  PWM_Play();
+//  HAL_ADC_Start_IT(&hadc2);
 //  typedef unsigned char byte;
 //  byte cup[] = {
 //    0x1F,
@@ -149,8 +152,23 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//  int r = 19;
+//  int t = 0;
   while (1)
   {
+//	  setCursor(r, 0);
+//	  print("-");
+//	  setCursor(t, 0);
+//	  print(" ");
+//	  r--;
+//	  t--;
+//	  if(r==-1){
+//		  r = 19;
+//	  }
+//	  if(t==-1){
+//		  t = 19;
+//	  }
+//	  HAL_Delay(50);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -201,12 +219,13 @@ void SystemClock_Config(void)
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB|RCC_PERIPHCLK_USART3
                               |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_RTC
-                              |RCC_PERIPHCLK_ADC12;
+                              |RCC_PERIPHCLK_TIM1|RCC_PERIPHCLK_ADC12;
   PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInit.USBClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+  PeriphClkInit.Tim1ClockSelection = RCC_TIM1CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -390,6 +409,53 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 3599;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 999;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -599,9 +665,6 @@ static void MX_GPIO_Init(void)
   HAL_NVIC_SetPriority(EXTI0_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI2_TSC_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI2_TSC_IRQn);
-
   HAL_NVIC_SetPriority(EXTI4_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
@@ -613,12 +676,14 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	if(hadc->Instance == ADC_VOLUME){
+	if(hadc->Instance == ADC2){
 		int raw_volume = HAL_ADC_GetValue(&hadc2);
-		int volume = raw_volume * 900 / 4095;
+		int volume = (raw_volume - 849) * 25 / (4095-770);
 		PWM_Set_Volume(volume);
-//		char stri[30];
-//		sprintf(stri,"%d ::  %d\n",raw_volume,volume);
+//		setCursor(3, 3);
+//		char stri[7];
+//		sprintf(stri,"%d ::  %d",raw_volume,volume);
+//		print(stri);
 //		HAL_UART_Transmit(&huart2, stri, sizeof(stri), 2000);
 		 HAL_ADC_Start_IT(&hadc2);
 	}
@@ -645,18 +710,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	  // +----+----+----+----+
 
 //	setCursor(2,2);
-	int x5 =10;
 	switch (button_number)
 	  {
 	  case 1:
 	    /* code */
 		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_8);
-//		  Set_Boss_Melody();
-
+		  Set_Boss_Melody();
 		  break;
 	  case 2:
 		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_9);
-//		  Set_Menu_Melody();
+		  Set_Menu_Melody();
 //		  print("2");
 		  /* code */
 	    break;

@@ -15,6 +15,12 @@ const uint16_t Row_pins[] = {GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIO_PIN_6};
 GPIO_TypeDef *const Column_ports[] = {GPIOD, GPIOD, GPIOD, GPIOD};
 const uint16_t Column_pins[] = {GPIO_PIN_1, GPIO_PIN_3, GPIO_PIN_5, GPIO_PIN_7};
 
+void Init_Keypad(){
+	for (int i=0;i<4;i++){
+		HAL_GPIO_WritePin(Column_ports[i], Column_pins[i], 1);
+	}
+}
+
 uint8_t Handle_Keypad(uint16_t GPIO_Pin){
 	  int8_t row_number = -1;
 	  int8_t column_number = -1;

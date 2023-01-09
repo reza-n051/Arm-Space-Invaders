@@ -15,7 +15,7 @@ volatile uint16_t current_melody_tone_count;
 volatile uint16_t current_tone_number;
 volatile uint32_t current_melody_wholenote;
 volatile uint32_t current_tone_end;
-volatile uint16_t volume = 50;
+volatile uint16_t volume = 999;
 
 
 int dividerToDuration(int divider,int wholenote){
@@ -50,7 +50,7 @@ void Change_Melody(const Tone* melody , const uint32_t wholenote, uint16_t melod
 }
 
 
-void PWM_Change_Tone(uint16_t pwm_freq, uint16_t volume) // pwm_freq (1 - 20000), volume (0 - 1000)
+void PWM_Change_Tone(uint16_t pwm_freq, uint16_t pwm_volume) // pwm_freq (1 - 20000), volume (0 - 1000)
 {
     if (pwm_freq == 0 || pwm_freq > 20000)
     {
@@ -62,7 +62,7 @@ void PWM_Change_Tone(uint16_t pwm_freq, uint16_t volume) // pwm_freq (1 - 20000)
         const uint16_t prescaler = 1 + internal_clock_freq / pwm_freq / 60000;
         const uint32_t timer_clock = internal_clock_freq / prescaler;
         const uint32_t period_cycles = timer_clock / pwm_freq;
-        const uint32_t pulse_width = volume * period_cycles / 1000 / 2;
+        const uint32_t pulse_width = pwm_volume * period_cycles / 1000 / 2;
         TIM_HandleTypeDef* pwm = buzzer_htim;
         pwm->Instance->PSC = prescaler - 1;
         pwm->Instance->ARR = period_cycles - 1;
@@ -72,10 +72,10 @@ void PWM_Change_Tone(uint16_t pwm_freq, uint16_t volume) // pwm_freq (1 - 20000)
 }
 
 void PWM_Set_Volume(int v){
-	if(v < 0){
+	if(v< 0){
 		volume = 0;
-	}else if(v > 1000){
-		volume = 1000;
+	}else if(v > 25){
+		volume = 25;
 	}else{
 		volume = v;
 	}

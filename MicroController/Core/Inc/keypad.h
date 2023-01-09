@@ -10,6 +10,7 @@
 
 #include "stm32f3xx_hal.h"
 
+void Init_Keypad();
 uint8_t Handle_Keypad(uint16_t GPIO_PIN);
 
 #endif /* INC_KEYPAD_H_ */
