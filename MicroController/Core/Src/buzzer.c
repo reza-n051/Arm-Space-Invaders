@@ -16,7 +16,7 @@ volatile uint16_t current_tone_number;
 volatile uint32_t current_melody_wholenote;
 volatile uint32_t current_tone_end;
 volatile uint16_t volume = 999;
-
+int isMelody;
 
 int dividerToDuration(int divider,int wholenote){
 	int d = 0;
@@ -42,11 +42,12 @@ void PWM_Pause(){
 	HAL_TIM_PWM_Stop(buzzer_htim, buzzer_channel);
 }
 
-void Change_Melody(const Tone* melody , const uint32_t wholenote, uint16_t melody_len){
+void Change_Melody(const Tone* melody , const uint32_t wholenote, uint16_t melody_len,int isMel){
 	current_melody_ptr = melody;
 	current_melody_wholenote = wholenote;
 	current_melody_tone_count = melody_len;
 	current_tone_number = 0;
+	isMelody = isMel;
 }
 
 
@@ -87,6 +88,14 @@ void Update_Melody(){
 		PWM_Change_Tone(active_tone.freq,volume);
 		int duration = dividerToDuration(active_tone.devider, current_melody_wholenote);
 		current_tone_end = HAL_GetTick() + duration;
-		current_tone_number++;
+		if(isMelody == 1){
+			if(current_tone_number >= current_melody_tone_count-2){
+				current_tone_number = 0;
+			}else{
+				current_tone_number++;
+			}
+		}else{
+			current_tone_number++;
+		}
 	}
 }

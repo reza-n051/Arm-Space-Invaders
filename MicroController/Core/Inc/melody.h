@@ -104,5 +104,7 @@
 
 void Set_Menu_Melody();
 void Set_Boss_Melody();
-
+void Set_Kill_Effect();
+void Set_Rest_Melody();
+void Set_Fire_Effect();
 #endif /* INC_MELODY_H_ */

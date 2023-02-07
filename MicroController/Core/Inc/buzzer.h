@@ -20,6 +20,6 @@ void PWM_Pause();
 void PWM_Change_Tone(uint16_t pwm_freq, uint16_t volume);
 void PWM_Set_Volume(int v);
 void Update_Melody();
-void Change_Melody(const Tone* melody , const uint32_t wholenote, uint16_t melody_len);
+void Change_Melody(const Tone* melody , const uint32_t wholenote, uint16_t melody_len,int isMel);
 
 #endif /* INC_BUZZER_H_ */

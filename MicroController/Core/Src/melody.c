@@ -7,8 +7,23 @@
 #include "melody.h"
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
-
-int wholenote_menu = 120000 / 180;
+int wholenote_rest = 120000 / 200;
+const Tone rest_melody[]={
+  {REST     ,4},
+};
+int wholenote_fire = 120000 / 200;
+const Tone fire_melody[]={
+  {NOTE_E5, 8},
+  {NOTE_D5, 8},
+  {REST     ,4},
+};
+int wholenote_kill = 120000 / 85;
+const Tone kill_melody[]={
+  {NOTE_DS4,16},
+  {NOTE_F4,16},
+  {REST     ,4},
+};
+int wholenote_menu = 120000 / 50;
 const Tone menu_melody[]={
   {NOTE_E5, 8},
   {NOTE_D5, 8},
@@ -159,10 +174,19 @@ const Tone boss_melody[]={
   {NOTE_AS5,16},
   {REST     ,4},
 };
+void Set_Rest_Melody(){
+	Change_Melody(rest_melody, wholenote_rest, ARRAY_LENGTH(rest_melody),0);
+}
 
 void Set_Menu_Melody(){
-	Change_Melody(menu_melody, wholenote_menu, ARRAY_LENGTH(menu_melody));
+	Change_Melody(menu_melody, wholenote_menu, ARRAY_LENGTH(menu_melody),1);
 }
 void Set_Boss_Melody(){
-	Change_Melody(boss_melody, wholenote_boss, ARRAY_LENGTH(boss_melody));
+	Change_Melody(boss_melody, wholenote_boss, ARRAY_LENGTH(boss_melody),1);
+}
+void Set_Kill_Effect(){
+	Change_Melody(kill_melody, wholenote_kill, ARRAY_LENGTH(kill_melody),0);
+}
+void Set_Fire_Effect(){
+	Change_Melody(fire_melody, wholenote_fire, ARRAY_LENGTH(fire_melody),0);
 }

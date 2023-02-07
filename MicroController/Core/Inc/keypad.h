@@ -12,10 +12,12 @@
 
 typedef struct PKResult{
 	int is_accepted;
-	char character;
+	int is_deleted;
+	char character[2];
 } PKResult;
 
 void Init_Keypad();
+void Reset_PK();
 uint8_t Handle_Keypad(uint16_t GPIO_PIN);
 PKResult Handle_Phone_Keypad(uint8_t button_number);
 #endif /* INC_KEYPAD_H_ */

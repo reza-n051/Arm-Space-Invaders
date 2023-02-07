@@ -9,7 +9,7 @@
 #include "keypad.h"
 // Input pull down rising edge trigger interrupt pins:
 // Row1 PD0, Row2 PD2, Row3 PD4, Row4 PD6
-const char k1[] = {'?','1'};
+const char k1[] = {'@','1'};
 const char k2[] = {'a','b','c','2'};
 const char k3[] = {'d','e','f','3'};
 const char k5[] = {'g','h','i','4'};
@@ -18,9 +18,7 @@ const char k7[] = {'m','n','o','6'};
 const char k9[] = {'p','q','r','s','7'};
 const char k10[] = {'t','u','v','8'};
 const char k11[] = {'w','x','y','z','9'};
-const char k13[] = {'+','*'};
 const char k14[] = {' ','0'};
-const char k15[] = {'@','#'};
 GPIO_TypeDef *const Row_ports[] = {GPIOD, GPIOD, GPIOD, GPIOD};
 const uint16_t Row_pins[] = {GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIO_PIN_6};
 // Output pins: Column1 PD1, Column2 PD3, Column3 PD5, Column4 PD7
@@ -90,57 +88,70 @@ uint8_t Handle_Keypad(uint16_t GPIO_Pin){
 }
 int button_counter = 0;
 int prev_button_number = -1;
-PKResult pkres={0,'-'};
+PKResult pkres={0,0,"."};
+void Reset_PK(){
+	 button_counter = 0;
+	 prev_button_number = -1;
+	 pkres=(PKResult) {0,0,"."};
+
+}
+//prev_button_number == button_number || prev_button_number == 13 || prev_button_number == 15
 PKResult Handle_Phone_Keypad(uint8_t button_number){
-	if(prev_button_number != button_number){
-		button_counter = 0;
+	if((prev_button_number != -1 && prev_button_number != button_number && (button_number != 15 && button_number != 13))){
+		//prev_button_number == -1 means ke karbar dar index jadidi hast ke tahala dokme nazade
+		// va age bezane meghdaresh tagheir mikone
+		return pkres;
 	}
-	int is_accecpt = 0;
+	if((prev_button_number == -1 && button_number == 15)){
+		//prev_button_number == -1 means ke karbar dar index jadidi hast ke tahala dokme nazade
+		// va age bezane meghdaresh tagheir mikone
+		return pkres;
+	}
+
+	//	 && prev_button_number != 15 && prev_button_number != 13
+	prev_button_number = button_number;
 	switch (button_number)
 	  {
-		case 1: //? 1
-			pkres.character = k1[button_counter % 2];
+		case 1: //- 1
+			pkres.character[0] = k1[button_counter % 2];
 			break;
 		case 2: //a b c 2
-			pkres.character = k2[button_counter % 4];
+			pkres.character[0] = k2[button_counter % 4];
 			break;
 		case 3: //d e f 3
-			pkres.character = k3[button_counter % 4];
+			pkres.character[0] = k3[button_counter % 4];
 			break;
 
+		case 13: //delete button
+			pkres.character[0] = '.';
+			pkres.is_deleted=1;
+			break;
 		case 5: //g h i 4
-			pkres.character = k5[button_counter % 4];
+			pkres.character[0] = k5[button_counter % 4];
 			break;
 		case 6: //j k l 5
-			pkres.character = k6[button_counter % 4];
+			pkres.character[0] = k6[button_counter % 4];
 			break;
 		case 7: //m n o 6
-			pkres.character = k7[button_counter % 4];
+			pkres.character[0] = k7[button_counter % 4];
 			break;
-		case 8: //accept
-			if(pkres.character != '-'){
-				pkres.is_accepted = 1;
-			}
-			break;
-
 		case 9: //p q r s 4
-			pkres.character = k9[button_counter % 5];
+			pkres.character[0] = k9[button_counter % 5];
 			break;
 		case 10: //t u v 5
-			pkres.character = k10[button_counter % 4];
+			pkres.character[0] = k10[button_counter % 4];
 
 			break;
 		case 11: //w x y z 6
-			pkres.character = k11[button_counter % 5];
+			pkres.character[0] = k11[button_counter % 5];
 			break;
-		case 13: //+ *
-			pkres.character = k13[button_counter % 2];
+		case 15: //accept
+			if(pkres.character[0] != '.'){
+				pkres.is_accepted = 1;
+			}
 			break;
 		case 14: //space 0
-			pkres.character = k14[button_counter % 2];
-			break;
-		case 15: //# @
-			pkres.character = k15[button_counter % 2];
+			pkres.character[0] = k14[button_counter % 2];
 			break;
 		default :
 			break;

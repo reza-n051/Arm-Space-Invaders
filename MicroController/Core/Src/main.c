@@ -27,6 +27,8 @@
 #include "game.h"
 #include "lcd.h"
 #include "stdio.h"
+#include "ctype.h"
+#include "string.h"
 #include "LiquidCrystal.h"
 /* USER CODE END Includes */
 
@@ -64,16 +66,25 @@ PCD_HandleTypeDef hpcd_USB_FS;
 RTC_TimeTypeDef mytime;
 RTC_DateTypeDef mydate;
 
+unsigned char uart_buffer[20];
+unsigned char uart_data;
+int uart_buffer_pos = 0;
+
 int timer_count = 0;
 volatile uint32_t last_gpio_exti;
 
-char player_name[10];
-char saved_game[80];
-char game_level;
+char si_player_name[] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
+char si_game_level;
+int si_is_player_entered_name=0;
 
-int lcd_page;
-int lcd_page_menu_current_option;
+int lcd_page = 0;
+int lcd_page_menu_current_option = 1;
 int lcd_page_game_menu_current_option;
+
+int ph_index=0;
+
+int msg_player_health=0;
+int msg_remained_enemies=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -141,6 +152,7 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   Init_Keypad();
+  HAL_UART_Receive_IT(&huart3, &uart_data, sizeof(uart_data));
 
   mytime.Hours = 18;
   mytime.Minutes=12;
@@ -153,30 +165,14 @@ int main(void)
 
   LiquidCrystal(GPIOD, GPIO_PIN_8, GPIO_PIN_9, GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_13, GPIO_PIN_14);
   begin(20,4);
-
   LCD_Init();
   LCD_Display_Page_Menu();
-//  Init_Game(gl, r, c, handle_timer)
+  LCD_Update_Selected_Option_In_Page_Menu(1, 1);
   HAL_TIM_Base_Start_IT(&htim1);
-//  setCursor(1, 1);
-//  print("HI");
-//  Init_Buzzer_PWM(&htim2,TIM_CHANNEL_2);
-//  PWM_Play();
-//  HAL_ADC_Start_IT(&hadc2);
-//  typedef unsigned char byte;
-//  byte cup[] = {
-//    0x1F,
-//    0x11,
-//    0x0A,
-//    0x04,
-//    0x04,
-//    0x04,
-//    0x0E,
-//    0x0E
-//  };
-
-//  createChar(0, cup);
-//  write(0);
+  Init_Buzzer_PWM(&htim2,TIM_CHANNEL_2);
+  PWM_Play();
+  Set_Menu_Melody();
+  HAL_ADC_Start_IT(&hadc2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -185,19 +181,16 @@ int main(void)
 //  int t = 0;
   while (1)
   {
-//	  setCursor(r, 0);
-//	  print("-");
-//	  setCursor(t, 0);
-//	  print(" ");
-//	  r--;
-//	  t--;
-//	  if(r==-1){
-//		  r = 19;
+//	  for(int i=0;i<4;i++){
+//		  for(int k=0;k<20;k++){
+//			  setCursor(k, i);
+//			  print("Q");
+//		  }
 //	  }
-//	  if(t==-1){
-//		  t = 19;
+//	  for(int i=0;i<4;i++){
+//		  setCursor(0, i);
+//		  print("EEEEEEEEEEEEEEEEEEEE");
 //	  }
-//	  HAL_Delay(50);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -694,6 +687,9 @@ static void MX_GPIO_Init(void)
   HAL_NVIC_SetPriority(EXTI0_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
+  HAL_NVIC_SetPriority(EXTI2_TSC_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_TSC_IRQn);
+
   HAL_NVIC_SetPriority(EXTI4_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
@@ -713,10 +709,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	}
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){ 		//every 50 ms
+
 	if(htim->Instance == TIM1){
 		timer_count++;
-		int cur_page = Get_Current_Page();
+		int cur_page = lcd_page;
 		if((timer_count * 50 ) % 1000 == 0 && cur_page == 5){
 			char time_str[9];
 			char date_str[9];
@@ -724,18 +721,84 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			HAL_RTC_GetDate(&hrtc, &mydate, RTC_FORMAT_BIN);
 			sprintf(time_str,"%2d:%2d:%2d",mytime.Hours,mytime.Minutes,mytime.Seconds);
 			sprintf(date_str,"%2d:%2d:%2d",mydate.Year ,mydate.Month  ,mydate.WeekDay);
-			Set_LCD_Time(time_str,date_str);
+			LCD_Update_Time(time_str,date_str);
 		}
 
-		//every 50 ms
-//		int is_game_ended = Get_Is_Game_Ended();
-//		if(is_game_ended){
-//			Command_Display_Page_End();
-//		}else{
-//			Handle_Game();
-//			UpdatedEntity ues =  Get_Updated_Entities();
-//			Command_Update_Game_Entities(ues);
-//		}
+		if(cur_page == 1){
+			int is_game_ended = SI_Is_Game_Ended();
+			if(is_game_ended){
+				lcd_page = 7;
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, 1);
+				int winner = SI_Get_Winner();
+				LCD_Clear_Page_Game();
+				LCD_Display_Page_End();
+				int score = SI_Get_Dead_Enemies();
+				char score_str[5];
+				sprintf(score_str,"%d",score);
+				LCD_Update_Games_Info_In_End(si_player_name,score_str);
+				if(winner == 1){
+					char msg[] = "You Win\n";
+					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+				}else if(winner == -1){
+					char msg[] = "Enemy Win\n";
+					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+				}
+
+			}else{
+				SI_Handle_Game();
+				int is_refresh_needed_for_enemies_moves = SI_Is_Enemies_Move_Down();
+				int remained_enemies = SI_Get_Remained_Enemies_Killings_For_Winnig();
+				if(remained_enemies==3 && msg_remained_enemies==0){
+					msg_remained_enemies = 1;
+					char msg[] = "Only 3 Enemies Remained For Win\n";
+					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+				}
+				int player_health = SI_Get_Player_Health();
+				if(player_health == 1 && msg_player_health==0){
+					msg_player_health=1;
+					char msg[] = "Your Health Is 1.\n";
+					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+				}
+				int ipke = SI_Is_Player_Kill_Enemy();
+				if(ipke == 1){
+					Set_Kill_Effect();
+				}
+				UpdatedEntity* ues =  SI_Get_Updated_Entities();
+				if(is_refresh_needed_for_enemies_moves == 1){
+					LCD_Update_Game_With_Enemy_Move(ues);
+				}else{
+					LCD_Update_Game_Without_Enemy_Move(ues);
+				}
+			}
+		}
+	}
+}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == USART3){
+		if(uart_data != 0x0A){
+			uart_buffer[uart_buffer_pos] = uart_data;
+			uart_buffer_pos += 1;
+		}else{
+			uart_buffer[uart_buffer_pos] = '\0';
+			int str_len = uart_buffer_pos + 2; //if user enter {aa} str_len is 4 because {a + a + 0x0A + \0}
+			char input[str_len];
+			for (int i = 0; i < str_len; i++) {
+				input[i] = toupper(uart_buffer[i]); //for example if user enter RezA it changes to REZA for next processes
+			}
+			uart_buffer_pos = 0 ;
+			if(lcd_page == 2){
+				char msg[] = "Please Enter A Valid Name With String Length < 8\n";
+				int size =strlen(input);
+				if(size > 8){
+					HAL_UART_Transmit(&huart3, msg, sizeof(msg), 1000);
+				}else{
+					strncpy(si_player_name,input,8);
+					LCD_Update_Name(si_player_name);
+					si_is_player_entered_name = 1;
+				}
+			}
+		}
+		HAL_UART_Receive_IT(&huart3, &uart_data, sizeof(uart_data));
 	}
 }
 
@@ -763,22 +826,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	 * page 1 : game
 	 * page 2 : enter name
 	 * page 3 : enter game level
-	 * page 4 : saved games
 	 * page 5 : about
-	 * page 6 : scores >
 	 * page 7 : end
-	 * page 8 : game_menu > (when player stop game)
 	 *
 	 */
+	int player_col;
+	int new_player_col;
+
 	int page = lcd_page;
 	switch (page){
 		case 0 :
 			switch (button_number)
 			  {
 				case 2:
-					if(lcd_page_menu_current_option != 3){
-						lcd_page_menu_current_option++;
-						LCD_Update_Selected_Option_In_Page_Menu(lcd_page_menu_current_option);
+					if(lcd_page_menu_current_option != 1){
+						lcd_page_menu_current_option--;
+						LCD_Update_Selected_Option_In_Page_Menu(lcd_page_menu_current_option,lcd_page_menu_current_option+1);
 					}
 					break;
 				case 4:
@@ -786,215 +849,143 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					if(lcd_page_menu_current_option == 1){
 						lcd_page = 2;
 						LCD_Display_Page_Entering_Name();
+						ph_index = 0;
+						Set_Rest_Melody();
 					}else if(lcd_page_menu_current_option == 2){
 						lcd_page = 5;
+						Set_Rest_Melody();
 						LCD_Display_Page_About();
-					}else if(lcd_page_menu_current_option == 3){
-						lcd_page = 4;
-						LCD_Display_Page_Load();
 					}
 					break;
 				case 10:
-					if(lcd_page_menu_current_option != 1){
-						lcd_page_menu_current_option--;
-						LCD_Update_Selected_Option_In_Page_Menu(lcd_page_menu_current_option);
+					if(lcd_page_menu_current_option != 2){
+						lcd_page_menu_current_option++;
+						LCD_Update_Selected_Option_In_Page_Menu(lcd_page_menu_current_option,lcd_page_menu_current_option-1);
 					}
 					break;
 				default :
 					break;
 			  }
+			break;
 		case 1 :
-			int player_col = Game_Get_Player_Col();
 			switch (button_number)
 			  {
-				case 5:
-					Move_Player(LEFT);
-					int new_player_col = Game_Get_Player_Col();
+				case 1:
+					player_col = SI_Get_Player_Col();
+					SI_Move_Player(LEFT);
+					new_player_col = SI_Get_Player_Col();
 					LCD_Update_Game_Player(new_player_col,player_col);
 					break;
-				case 6:
-					Shoot_Player();
+				case 10:
+					SI_Shoot_Player();
+					Set_Fire_Effect();
 					break;
-				case 7:
-					Move_Player(RIGHT);
-					int new_player_col = Game_Get_Player_Col();
+				case 3:
+					player_col = SI_Get_Player_Col();
+					SI_Move_Player(RIGHT);
+					new_player_col = SI_Get_Player_Col();
 					LCD_Update_Game_Player(new_player_col,player_col);
-					break;
-				case 16:
-//					TODO : Save Game Here Fow When We ComeBack To Game
-					LCD_Clear_Page_Game();
-					LCD_Display_Page_Game_Menu();
-//					Command_Display_Page_Game_Menu();
 					break;
 				default :
 					break;
 			  }
 
-
-		case 2 :
+			break;
+		case 2 ://Entering Name
 			if(button_number == 4){
-				LCD_Delete_Name();
+				LCD_Clear_Player_Name();
+				ph_index = 0;
+				Reset_PK();
+				si_is_player_entered_name = 0;
 			}else if(button_number == 12){
-				Game_Set_Player_Name();
-//				LCD_Set_Player_Name();
-				char name[8] = Command_Get_Name();
-				LCD_Clear_Page_Entering_Name();
-				LCD_Display_Page_Setting_Level();
+				if(si_is_player_entered_name==1){
+					lcd_page = 3;
+					LCD_Clear_Page_Entering_Name();
+					LCD_Display_Page_Setting_Level();
+				}else{
+					char msg[] = "Please Enter A Name.\n";
+					HAL_UART_Transmit(&huart3, msg, sizeof(msg), 1000);
+				}
 			}else{
-				PKResult pk_result = Handle_Phone_Keypad(button_number);
-				Command_Enter_Name(pk_result.character,pk_result.is_accepted);
+				if(ph_index < 8){
+					PKResult pk_result = Handle_Phone_Keypad(button_number);
+					LCD_Update_Char_Name(pk_result.character, ph_index+2);
+					if(pk_result.is_accepted==1 ){
+						si_player_name[ph_index] = pk_result.character[0];
+						si_is_player_entered_name = 1;
+						ph_index++;
+						LCD_Update_Char_Name_Pointer(ph_index+2);
+						if(ph_index>7){
+							ph_index=7;
+						}
+						Reset_PK();
+					}
+					if(pk_result.is_deleted==1){
+						Reset_PK();
+					}
+				}
 			}
+			break;
 
 		case 3 :
 			switch (button_number)
 			  {
 				case 1:
-					Game_Set_Game_Level('H');
+					si_game_level = 'E';
 					break;
 				case 2:
-					Game_Set_Game_Level('N');
+					si_game_level = 'N';
 					break;
 				case 3:
-					Game_Set_Game_Level('E');
+					si_game_level = 'H';
+					break;
+				case 4:
+					LCD_Clear_Page_Setting_Level();
+					lcd_page = 1;
+					SI_Init_Game(si_game_level, 50);
+					LCD_Display_Page_Game();
+					char msg[100];
+					int target = 0;
+					if(si_game_level == 'H'){
+						target = 35;
+					}else if(si_game_level == 'N'){
+						target = 25;
+					}else if(si_game_level == 'E'){
+						target = 15;
+					}
+					sprintf(msg,"game started!!level is %c and enemy target for winning is %d.\n",si_game_level,target);
+					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
 					break;
 				default :
 					break;
 			  }
-			LCD_Clear_Page_Setting_Level();
-			//TODO : Here Game Should Be Started. But HOW??
-
-//		case 4 :
-//			switch (button_number)
-//			  {
-//				case 2:
-//					LCD_Go_Perv_Option_In_Page_Menu();
-//
-//					break;
-//				case 6:
-//					break;
-//				case 10:
-//					break;
-//				default :
-//					break;
-//			  }
+			break;
 		case 5 :
 			if(button_number == 16){
+				lcd_page = 0;
 				LCD_Clear_Page_About();
 				LCD_Display_Page_Menu();
+				Set_Menu_Melody();
 			}
 			break;
-		case 6 :
-			if(button_number == 16){
-				LCD_Clear_Page_Scores();
-				LCD_Display_Page_Menu();
-			}
 		case 7 :
 			if(button_number == 4){
+				lcd_page = 0;
 				LCD_Clear_Page_End();
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, 0);
 				LCD_Display_Page_Menu();
+				Set_Menu_Melody();
+				timer_count =0;
+//				for(int i=0;i<10;i++){
+//
+//				}
 			}
-
-//		case 8 :
-//			switch (button_number)
-//			  {
-//				case 2:
-//					Command_Game_Menu_Prev_Option();
-//					break;
-//				case 6:
-//					Command_Saved_Game_Select_Option_In_Main_Menu();
-//					break;
-//				case 10:
-//					Command_Game_Menu_Next_Option();
-//					break;
-//				default :
-//					break;
-//			  }
-//			//is_a_saved_game,saved_game
-//			Command_Display_Page_Game(0,0);
-//			break;
+			break;
 		default :
 			break;
 	}
-//	switch (button_number)
-//	  {
-//	  case 1:
-//	    /* code */
-//		  break;
-//	  case 2: //up (equals to 2 in lcd)
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_9);
-//		  Set_Menu_Melody();
-////		  print("2");
-//		  /* code */
-//	    break;
-//	  case 3:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10);
-////		  print("3");
-//	    /* code */
-//	    break;
-//	  case 4:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_11);
-////		  print("4");
-//	    /* code */
-//	    break;
-//	  case 5://left (equals to 4 in lcd)
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_12);
-////		  print("5");
-//	    /* code */
-//	    break;
-//	  case 6:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_13);
-////		  print("6");
-//	    /* code */
-//	    break;
-//	  case 7://right (equals to 2 in lcd)
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_14);
-////		  print("7");
-//	    /* code */
-//	    break;
-//	  case 8:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_15);
-//	    /* code */
-//	    break;
-//	  case 9:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_15);
-//	    /* code */
-//	    break;
-//	  case 10://down (equals to 2 in lcd)
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_15);
-//	    /* code */
-//	    break;
-//	  case 11:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_15);
-//	    /* code */
-//	    break;
-//	  case 12:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_15);
-//	    /* code */
-//	    break;
-//	  case 13:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_14);
-//	    /* code */
-//	    break;
-//	  case 14:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_13);
-//	    /* code */
-//	    break;
-//	  case 15:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_9);
-//	    /* code */
-//	    break;
-//	  case 16:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10);
-//
-//	    /* code */
-//	    break;
-//
-//	  default:
-//		  HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_12);
-//	    break;
-//	  }
-//	 print("Gfd");
 }
+
 /* USER CODE END 4 */
 
 /**

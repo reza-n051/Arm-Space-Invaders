@@ -67,12 +67,28 @@ typedef struct UpdatedEntity{
 	int action_type;//delete=1 update=2 insert=3
 } UpdatedEntity;
 
-void Init_Game();
+typedef struct LoaderResult{
 
-void Move_Player(MoveDirection md);
+	char arr[2000];
+} LoaderResult;
 
-void Shoot_Player();
+void SI_Init_Game(char gl,int handle_timer);
 
-void Handle_Game();
+void SI_Move_Player(MoveDirection md);
 
+void SI_Shoot_Player();
+
+void SI_Handle_Game();
+
+UpdatedEntity* SI_Get_Updated_Entities();
+
+int SI_Get_Player_Col();
+
+int SI_Is_Game_Ended();
+int SI_Get_Dead_Enemies();
+int SI_Get_Remained_Enemies_Killings_For_Winnig();
+int SI_Get_Player_Health();
+int SI_Is_Player_Kill_Enemy();
+int SI_Get_Winner();
+int SI_Is_Enemies_Move_Down();
 #endif /* INC_GAME_H_ */

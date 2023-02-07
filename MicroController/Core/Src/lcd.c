@@ -14,12 +14,71 @@
 #define PAGE_ABOUT_STATIC_SQUARES_COUNT 41
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(arr[0]))
 
+typedef unsigned char byte;
 
 typedef struct Area{
 	int col;
 	int row;
 	int len;
 } Area;
+
+byte player_character[] = {
+		  0x12,
+		  0x0C,
+		  0x17,
+		  0x17,
+		  0x17,
+		  0x17,
+		  0x0C,
+		  0x12
+};
+byte e1_character[] = {
+  0x1D,
+  0x1E,
+  0x03,
+  0x0B,
+  0x0B,
+  0x03,
+  0x1E,
+  0x1D
+};
+byte e3_character[] = {
+  0x01,
+  0x1D,
+  0x02,
+  0x09,
+  0x09,
+  0x02,
+  0x1D,
+  0x01
+};
+byte e2_character[] = {
+  0x00,
+  0x1E,
+  0x02,
+  0x09,
+  0x09,
+  0x02,
+  0x1E,
+  0x00
+};
+byte fire_character[] = {
+  0x00,
+  0x00,
+  0x00,
+  0x1F,
+  0x1F,
+  0x00,
+  0x00,
+  0x00
+};
+void LCD_Init(){
+	createChar(0, e1_character);
+	createChar(1, e2_character);
+	createChar(2, e3_character);
+	createChar(3, player_character);
+	createChar(4, fire_character);
+}
 
 Area page_menu_static_squares[3] = {
 		(Area) {2,0,4},
@@ -38,9 +97,9 @@ Area page_entering_name_static_squares[2] = {
 };
 Area page_setting_level_squares[4] = {
 		(Area) {2,0,16},
-		(Area) {2,1,9},
-		(Area) {2,2,9},
-		(Area) {2,3,9},
+		(Area) {2,1,12},
+		(Area) {2,2,12},
+		(Area) {2,3,12},
 };
 Area page_game_menu_static_squares[2] = {
 		(Area) {2,0,4},//play
@@ -56,34 +115,33 @@ Area page_load_static_squares[2] = {
 };
 
 
-Area page_menu_option_selector = (Area) {1,0,1};
-Area page_game_menu_option_selector = (Area) {1,0,1};
+Area page_menu_option_selector1 = (Area) {1,0,1};
+Area page_menu_option_selector2 = (Area) {1,0,1};
+Area page_menu_option_selector3 = (Area) {1,0,1};
 Area page_load_option =  (Area) {2,2,10};
 Area page_entering_name = (Area) {2,2,8};
+Area page_entering_name_pointer = (Area) {2,3,8};
 Area page_about_date = (Area) {2,2,8};
 Area page_about_time = (Area) {2,3,8};
-Area page_end_name = (Area)  {10,1,8};
-Area page_end_score = (Area) {10,2,3};
+Area page_end_name = (Area)  {10,1,10};
+Area page_end_score = (Area) {10,2,10};
 
 
 
 //player1 => p
-//enemy1  => q
-//enemy2  => w
-//enemy3  => e
-//fire1   => f
-//fire2   => d
+//enemy1  => Q
+//enemy2  => W
+//enemy3  => E
+//fire1   => F
+//fire2   => D
 /*
  * page 0 : menu
  *
  * page 1 : game
  * page 2 : enter name
  * page 3 : enter game level
- * page 4 : saved games
  * page 5 : about
- * page 6 : scores
  * page 7 : end
- * page 8 : game_menu (when player stop game)
  *
  */
 
@@ -104,18 +162,17 @@ void lcd_clear_area(Area a){
 	int row = a.row;
 	int col = a.col;
 	int len = a.len;
-	for (int i=col;i<len;i++) {
+	for (int i=col;i<col + len;i++) {
 		setCursor(i, row);
 		print(" ");
 	}
 }
 
-void lcd_clear_static_squares(Area* areas){
-	int static_length = ARRAY_LENGTH(areas);
-	for(int i=0;i<static_length;i++){
+void lcd_clear_static_squares(Area* areas,int arr_len){
+	for(int i=0;i<arr_len;i++){
 		Area a = *(areas + i);
-		for(int j=a.col;j<a.len;j++){
-			setCursor(j, i);
+		for(int j=a.col;j<a.col+a.len;j++){
+			setCursor(j, a.row);
 			print(" ");
 		}
 	}
@@ -139,14 +196,12 @@ void LCD_Display_Page_Menu(){
 	print("Game");
 	setCursor(2, 1);
 	print("About");
-	setCursor(2, 2);
-	print("Load");
 }
 void LCD_Display_Page_Entering_Name(){
 	setCursor(2, 0);
 	print("Enter Your Name");
 	setCursor(2, 1);
-	print("Maximum 8 characters");
+	print("Max: 8 characters");
 }
 void LCD_Display_Page_Setting_Level(){
 	setCursor(2,0);
@@ -184,37 +239,142 @@ void LCD_Clear_Page_Game(){
 	clear();
 }
 void LCD_Clear_Page_Menu(){
-	lcd_clear_static_squares(page_menu_static_squares);
-	lcd_clear_area(page_menu_option_selector);
+	lcd_clear_static_squares(page_menu_static_squares,3);
+	lcd_clear_area(page_menu_option_selector1);
+	lcd_clear_area(page_menu_option_selector2);
+	lcd_clear_area(page_menu_option_selector3);
 }
 void LCD_Clear_Page_Entering_Name(){
-	lcd_clear_static_squares(page_entering_name_static_squares);
+	lcd_clear_static_squares(page_entering_name_static_squares,2);
 	lcd_clear_area(page_entering_name);
+	lcd_clear_area(page_entering_name_pointer);
 }
 void LCD_Clear_Page_Setting_Level(){
-	lcd_clear_static_squares(page_setting_level_squares);
-}
-void LCD_Clear_Page_Game_Menu(){
-	lcd_clear_static_squares(page_game_menu_static_squares);
-	lcd_clear_area(page_game_menu_option_selector);
-
+	clear();
+//	lcd_clear_static_squares(page_setting_level_squares,4);
 }
 void LCD_Clear_Page_About(){
-	lcd_clear_static_squares(page_about_static_squares);
+	lcd_clear_static_squares(page_about_static_squares,4);
 	lcd_clear_area(page_about_date);
 	lcd_clear_area(page_about_time);
 }
 void LCD_Clear_Page_End(){
-	lcd_clear_static_squares(page_end_static_squares);
-	lcd_clear_area(page_end_score);
-	lcd_clear_area(page_end_name);
+	clear();
 }
 void LCD_Clear_Page_Load(){
-	lcd_clear_static_squares(page_load_static_squares);
+	lcd_clear_static_squares(page_load_static_squares,2);
 
 }
 
-void LCD_Update_Game(UpdatedEntity* ues){
+void LCD_Update_Game_With_Enemy_Move(UpdatedEntity* ues){
+	int col_0_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+	int col_1_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+	int col_2_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+	int col_3_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+	int ue_id = -1;
+	int index = 0;
+	do{
+		ue_id = ues[index].id;
+		int col = get_lcd_col_from_game_col(ues[index].col);
+		int row = get_lcd_row_from_game_row(ues[index].row);
+		int type = ues[index].type;
+		int entity_type = ues[index].entity_type;
+		int action_type = ues[index].action_type;
+		if(action_type == INSERT){
+			if(type == EEnemy){
+				if(col == 0){
+					col_0_entities[row] = entity_type;
+				}else if(col == 1){
+					col_1_entities[row] = entity_type;
+				}else if(col == 2){
+					col_2_entities[row] = entity_type;
+				}else if(col == 3){
+					col_3_entities[row] = entity_type;
+				}
+			}else if(type == EFire || type == EPlayerFire){
+				setCursor(row, col);
+				write(4);
+			}
+		}else if(action_type == DELETE){
+			setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
+			print(" ");
+		}else if(action_type == UPDATE){
+			if(type== EEnemy){
+				if(col == 0){
+					col_0_entities[row] = entity_type;
+				}else if(col == 1){
+					col_1_entities[row] = entity_type;
+				}else if(col == 2){
+					col_2_entities[row] = entity_type;
+				}else if(col == 3){
+					col_3_entities[row] = entity_type;
+				}
+
+			}else if(type == EFire){
+				setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
+				write(4);
+				setCursor(row+1,col);
+				print(" ");
+			}else if(type == EPlayerFire){
+				setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
+				write(4);
+				setCursor(row-1,col);
+				print(" ");
+
+			}
+		}
+		index++;
+	}while(ue_id != -1 && index < Max_Entity_In_Game);
+	int min_rows[4] = {0,0,0,0};
+	int is_finded[4] = {0,0,0,0};
+	for(int i=0;i<20;i++){
+		if(col_0_entities[i] != -1 && is_finded[0] == 0){
+			min_rows[0] = i;
+			is_finded[0] = 1;
+		}
+		if(col_1_entities[i] != -1 && is_finded[1] == 0){
+			min_rows[1] = i;
+			is_finded[1] = 1;
+		}
+		if(col_2_entities[i] != -1 && is_finded[2] == 0){
+			min_rows[2] = i;
+			is_finded[2] = 1;
+		}
+		if(col_3_entities[i] != -1 && is_finded[3] == 0){
+			min_rows[3] = i;
+			is_finded[3] = 1;
+		}
+	}
+	setCursor(min_rows[0], 0);
+	for(int i=0;i<20;i++){
+		if(col_0_entities[i] != -1){
+			write(col_0_entities[i]);
+		}
+	}
+	setCursor(min_rows[1], 1);
+	for(int i=0;i<20;i++){
+		if(col_1_entities[i] != -1){
+			write(col_1_entities[i]);
+		}
+
+	}
+	setCursor(min_rows[2], 2);
+	for(int i=0;i<20;i++){
+		if(col_2_entities[i] != -1){
+			write(col_2_entities[i]);
+		}
+	}
+	setCursor(min_rows[3], 3);
+	for(int i=0;i<20;i++){
+		if(col_3_entities[i] != -1){
+			write(col_3_entities[i]);
+		}
+	}
+
+}
+
+
+void LCD_Update_Game_Without_Enemy_Move(UpdatedEntity* ues){
 	int ue_id = -1;
 	int index = 0;
 	do{
@@ -224,56 +384,39 @@ void LCD_Update_Game(UpdatedEntity* ues){
 		int type = ues[index].type;
 		int entity_type = ues[index].entity_type;
 		ue_id = ues[index].id;
-		setCursor(col, row);
+		setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
 		if(action_type == INSERT){
+
 			if(type == EEnemy){
 				if(entity_type == 1){
-					print('q');
+					write(1);
 				}else if(entity_type == 2){
-					print('w');
-				}else if(entity_type == 3){
-					print('e');
+					write(2);
+				}else if(entity_type == 0){
+					write(0);
 				}
 			}else if(type == EFire || type == EPlayerFire){
-				if(entity_type == 1){
-					print('f');
-				}else if(entity_type == 2){
-					print('d');
-				}
+				write(4);
 			}
 		}else if(action_type == DELETE){
-			print(' ');
+			print(" ");
 		}else if(action_type == UPDATE){
 			if(type == EEnemy){
-				if(entity_type == 1){
-					print('q');
-				}else if(entity_type == 2){
-					print('w');
-				}else if(entity_type == 3){
-					print('e');
-				}
-				setCursor(col,row+1);
-				print(' ');
+				write(entity_type);
+				setCursor(row+1,col);
+				print(" ");
 			}else if(type == EFire){
-				if(entity_type == 1){
-					print('f');
-				}else if(entity_type == 2){
-					print('d');
-				}
-				setCursor(col,row+1);
-				print(' ');
+				write(4);
+				setCursor(row+1,col);
+				print(" ");
 
 			}else if(type == EPlayerFire){
-				if(entity_type == 1){
-					print('f');
-				}else if(entity_type == 2){
-					print('d');
-				}
-				setCursor(col,row-1);
-				print(' ');
-
+				write(4);
+				setCursor(row-1,col);
+				print(" ");
 			}
 		}
+		index++;
 	}while(ue_id != -1 && index < Max_Entity_In_Game);
 }
 void LCD_Update_Time(char* time_str,char* date_str){
@@ -282,28 +425,33 @@ void LCD_Update_Time(char* time_str,char* date_str){
 	setCursor(2, 3);
 	print(time_str);
 }
-void LCD_Update_Selected_Option_In_Page_Menu(int option){
+void LCD_Update_Selected_Option_In_Page_Menu(int option,int prev_option){
+	int prev_col = 1;
+	int prev_row = prev_option-1;
+	setCursor(prev_col, prev_row);
+	print(" ");
 	int cur_col = 1;
-	int cur_row = option;
-	setCursor(cur_col, cur_row);
-	print(">");
-}
-void LCD_Update_Selected_Option_In_Page_Game_Menu(int option){
-	int cur_col = 1;
-	int cur_row = option;
-	setCursor(cur_col, cur_row);
-	print(">");
-}
-void LCD_Update_Selected_Option_In_Page_Saved_Games(int option){
-	int cur_col = 1;
-	int cur_row = option;
+	int cur_row = option-1;
 	setCursor(cur_col, cur_row);
 	print(">");
 }
 void LCD_Update_Name(char* name){
-	setCursor(2, 3);
+	setCursor(2, 2);
 	print(name);
 }
+
+void LCD_Update_Char_Name(char* character,int col){
+	setCursor(col, 2);
+	print(character);
+	setCursor(col, 3);
+	print("^");
+}
+void LCD_Update_Char_Name_Pointer(int col){
+	setCursor(col, 3);
+	print("^");
+}
+
+
 
 void LCD_Update_Games_Info_In_End(char* name,char* score){
 	setCursor(10, 1);
@@ -313,34 +461,14 @@ void LCD_Update_Games_Info_In_End(char* name,char* score){
 }
 
 void LCD_Update_Game_Player(int col,int prev_col){
-	setCursor(prev_col, 0);
+	setCursor(0,prev_col);
 	print(" ");
-	setCursor(col, row);
-	print("P")
+	setCursor(0, col);
+	write(3);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void LCD_Clear_Player_Name(){
+	lcd_clear_area(page_entering_name);
+	lcd_clear_area(page_entering_name_pointer);
+}
 
