@@ -74,7 +74,7 @@ int timer_count = 0;
 volatile uint32_t last_gpio_exti;
 
 char si_player_name[] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
-char si_game_level;
+char si_game_level= 'E';
 int si_is_player_entered_name=0;
 
 int lcd_page = 0;
@@ -85,6 +85,9 @@ int ph_index=0;
 
 int msg_player_health=0;
 int msg_remained_enemies=0;
+
+int is_game_page_cleared_for_boss=0;
+int is_boss_game_started = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -104,9 +107,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc);
 
-//{
-//	if(hadc->Instance == ADC1){
-
+void Reset_App();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -158,9 +159,9 @@ int main(void)
   mytime.Minutes=12;
   mytime.Seconds=41;
   HAL_RTC_SetTime(&hrtc, &mytime, RTC_FORMAT_BIN);
-  mydate.Year = 2;
-  mydate.Month=6;
-  mydate.WeekDay=8;
+  mydate.Year = 23;
+  mydate.Month=2;
+  mydate.WeekDay=2;
   HAL_RTC_SetDate(&hrtc, &mydate, RTC_FORMAT_BIN);
 
   LiquidCrystal(GPIOD, GPIO_PIN_8, GPIO_PIN_9, GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_13, GPIO_PIN_14);
@@ -177,20 +178,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//  int r = 19;
-//  int t = 0;
   while (1)
   {
-//	  for(int i=0;i<4;i++){
-//		  for(int k=0;k<20;k++){
-//			  setCursor(k, i);
-//			  print("Q");
-//		  }
-//	  }
-//	  for(int i=0;i<4;i++){
-//		  setCursor(0, i);
-//		  print("EEEEEEEEEEEEEEEEEEEE");
-//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -725,9 +714,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){ 		//every 50 ms
 		}
 
 		if(cur_page == 1){
+			int is_non_boss_game_ended = SI_Is_Non_Boss_Game_Ended();
+			if(is_non_boss_game_ended == 1 && is_game_page_cleared_for_boss ==0){
+				is_game_page_cleared_for_boss=1;
+				for(int i=0;i<4;i++){
+					for(int j=1;j<20;j++){
+						setCursor(j, i);
+						print(" ");
+					}
+				}
+			}
 			int is_game_ended = SI_Is_Game_Ended();
-			if(is_game_ended){
+			if(is_game_ended==1){
 				lcd_page = 7;
+				Set_Rest_Melody();
 				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, 1);
 				int winner = SI_Get_Winner();
 				LCD_Clear_Page_Game();
@@ -745,29 +745,72 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){ 		//every 50 ms
 				}
 
 			}else{
-				SI_Handle_Game();
-				int is_refresh_needed_for_enemies_moves = SI_Is_Enemies_Move_Down();
-				int remained_enemies = SI_Get_Remained_Enemies_Killings_For_Winnig();
-				if(remained_enemies==3 && msg_remained_enemies==0){
-					msg_remained_enemies = 1;
-					char msg[] = "Only 3 Enemies Remained For Win\n";
-					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
-				}
-				int player_health = SI_Get_Player_Health();
-				if(player_health == 1 && msg_player_health==0){
-					msg_player_health=1;
-					char msg[] = "Your Health Is 1.\n";
-					HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
-				}
-				int ipke = SI_Is_Player_Kill_Enemy();
-				if(ipke == 1){
-					Set_Kill_Effect();
-				}
-				UpdatedEntity* ues =  SI_Get_Updated_Entities();
-				if(is_refresh_needed_for_enemies_moves == 1){
-					LCD_Update_Game_With_Enemy_Move(ues);
+				if(is_non_boss_game_ended==1){
+					int winner = SI_Get_Winner();
+					if(winner == -1){
+						lcd_page = 7;
+						Set_Rest_Melody();
+						HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, 1);
+						LCD_Clear_Page_Game();
+						LCD_Display_Page_End();
+						int score = SI_Get_Dead_Enemies();
+						char score_str[5];
+						sprintf(score_str,"%d",score);
+						LCD_Update_Games_Info_In_End(si_player_name,score_str);
+						if(winner == 1){
+							char msg[] = "You Win\n";
+							HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+						}else if(winner == -1){
+							char msg[] = "Enemy Win\n";
+							HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+						}
+					}else{
+						if(is_boss_game_started == 0){
+							is_boss_game_started = 1;
+							Set_Boss_Melody();
+						}
+						SI_Handle_Boss_Game();
+						int remained_enemies = SI_Get_Remained_Enemies_Killings_For_Winnig();
+						if(remained_enemies==3 && msg_remained_enemies==0){
+							msg_remained_enemies = 1;
+							char msg[] = "Only 3 Enemies Remained For Win\n";
+							HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+						}
+						int player_health = SI_Get_Player_Health();
+						if((player_health == 2||player_health == 1) && msg_player_health==0){
+							msg_player_health=1;
+							char msg[] = "Your Health Is less than 2.\n";
+							HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+						}
+						UpdatedEntity* ues =  SI_Get_Updated_Entities();
+						LCD_Update_Game_Boss(ues);
+					}
 				}else{
-					LCD_Update_Game_Without_Enemy_Move(ues);
+					SI_Handle_Game();
+					int is_refresh_needed_for_enemies_moves = SI_Is_Enemies_Move_Down();
+					int remained_enemies = SI_Get_Remained_Enemies_Killings_For_Winnig();
+					if(remained_enemies==3 && msg_remained_enemies==0){
+						msg_remained_enemies = 1;
+						char msg[] = "Only 3 Enemies Remained For Win\n";
+						HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+					}
+					int player_health = SI_Get_Player_Health();
+					if(player_health == 1 && msg_player_health==0){
+						msg_player_health=1;
+						char msg[] = "Your Health Is 1.\n";
+						HAL_UART_Transmit(&huart3, msg, strlen(msg), 1000);
+					}
+					int ipke = SI_Is_Player_Kill_Enemy();
+					if(ipke == 1){
+						Set_Kill_Effect();
+					}
+					UpdatedEntity* ues =  SI_Get_Updated_Entities();
+					if(is_refresh_needed_for_enemies_moves == 1){
+						LCD_Update_Game_With_Enemy_Move(ues);
+					}else{
+						LCD_Update_Game_Without_Enemy_Move(ues);
+					}
+
 				}
 			}
 		}
@@ -787,19 +830,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			}
 			uart_buffer_pos = 0 ;
 			if(lcd_page == 2){
-				char msg[] = "Please Enter A Valid Name With String Length < 8\n";
-				int size =strlen(input);
-				if(size > 8){
-					HAL_UART_Transmit(&huart3, msg, sizeof(msg), 1000);
-				}else{
-					strncpy(si_player_name,input,8);
-					LCD_Update_Name(si_player_name);
-					si_is_player_entered_name = 1;
-				}
+//				char msg[] = "Please Enter A Valid Name With String Length < 8\n";
+//				int size =strlen(input);
+//				if(size > 1){
+//					HAL_UART_Transmit(&huart3, msg, sizeof(msg), 1000);
+//				}else{
+//					if(ph_index< 8){
+//						si_player_name[ph_index] = input[0];
+//						si_is_player_entered_name = 1;
+//						ph_index++;
+//						LCD_Update_Char_Name_Pointer(ph_index+2);
+//						if(ph_index>7){
+//							ph_index=7;
+//						}
+//						Reset_PK();
+//					}
+//				}
 			}
 		}
-		HAL_UART_Receive_IT(&huart3, &uart_data, sizeof(uart_data));
 	}
+	HAL_UART_Receive_IT(&huart3, &uart_data, sizeof(uart_data));
+
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
@@ -848,9 +899,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					LCD_Clear_Page_Menu();
 					if(lcd_page_menu_current_option == 1){
 						lcd_page = 2;
+						Set_Rest_Melody();
 						LCD_Display_Page_Entering_Name();
 						ph_index = 0;
-						Set_Rest_Melody();
 					}else if(lcd_page_menu_current_option == 2){
 						lcd_page = 5;
 						Set_Rest_Melody();
@@ -870,7 +921,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case 1 :
 			switch (button_number)
 			  {
-				case 1:
+				case 5:
 					player_col = SI_Get_Player_Col();
 					SI_Move_Player(LEFT);
 					new_player_col = SI_Get_Player_Col();
@@ -879,8 +930,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				case 10:
 					SI_Shoot_Player();
 					Set_Fire_Effect();
+					if(is_boss_game_started == 1){
+						Set_Boss_Melody();
+					}
 					break;
-				case 3:
+				case 7:
 					player_col = SI_Get_Player_Col();
 					SI_Move_Player(RIGHT);
 					new_player_col = SI_Get_Player_Col();
@@ -903,11 +957,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 					LCD_Clear_Page_Entering_Name();
 					LCD_Display_Page_Setting_Level();
 				}else{
-					char msg[] = "Please Enter A Name.\n";
+					char msg[] = "Please Enter Or Complete Your Name.\n";
 					HAL_UART_Transmit(&huart3, msg, sizeof(msg), 1000);
 				}
 			}else{
 				if(ph_index < 8){
+					si_is_player_entered_name = 0;
 					PKResult pk_result = Handle_Phone_Keypad(button_number);
 					LCD_Update_Char_Name(pk_result.character, ph_index+2);
 					if(pk_result.is_accepted==1 ){
@@ -921,6 +976,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 						Reset_PK();
 					}
 					if(pk_result.is_deleted==1){
+						si_player_name[ph_index] = '\0';
 						Reset_PK();
 					}
 				}
@@ -930,13 +986,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		case 3 :
 			switch (button_number)
 			  {
-				case 1:
+				case 5:
 					si_game_level = 'E';
 					break;
-				case 2:
+				case 6:
 					si_game_level = 'N';
 					break;
-				case 3:
+				case 7:
 					si_game_level = 'H';
 					break;
 				case 4:
@@ -975,17 +1031,31 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, 0);
 				LCD_Display_Page_Menu();
 				Set_Menu_Melody();
-				timer_count =0;
-//				for(int i=0;i<10;i++){
-//
-//				}
+				Reset_App();
 			}
 			break;
 		default :
 			break;
 	}
 }
-
+void Reset_App(){
+	timer_count =0;
+	lcd_page = 0;
+	lcd_page_menu_current_option = 1;
+	ph_index=0;
+	msg_player_health=0;
+	msg_remained_enemies=0;
+	is_game_page_cleared_for_boss=0;
+	is_boss_game_started = 0;
+	uart_buffer_pos = 0;
+	timer_count = 0;
+	for(int i=0;i<10;i++){
+		si_player_name[i] = '\0';
+	}
+	si_game_level= 'E';
+	si_is_player_entered_name=0;
+	SI_Reset_Game();
+}
 /* USER CODE END 4 */
 
 /**

@@ -72,12 +72,46 @@ byte fire_character[] = {
   0x00,
   0x00
 };
+byte b1_character[] = {
+  0x14,
+  0x1A,
+  0x15,
+  0x12,
+  0x13,
+  0x11,
+  0x15,
+  0x11
+};
+byte b2_character[] = {
+  0x11,
+  0x15,
+  0x11,
+  0x13,
+  0x12,
+  0x15,
+  0x1A,
+  0x14
+};
+byte b3_character[] = {
+  0x00,
+  0x00,
+  0x1F,
+  0x00,
+  0x00,
+  0x1F,
+  0x00,
+  0x00
+};
+
 void LCD_Init(){
 	createChar(0, e1_character);
 	createChar(1, e2_character);
 	createChar(2, e3_character);
 	createChar(3, player_character);
 	createChar(4, fire_character);
+	createChar(5, b1_character);
+	createChar(6, b2_character);
+	createChar(7, b3_character);
 }
 
 Area page_menu_static_squares[3] = {
@@ -180,7 +214,7 @@ void lcd_clear_static_squares(Area* areas,int arr_len){
 
 void LCD_Display_Page_Game(){
 	setCursor(0, 0);
-	print("P");
+	write(3);
 }
 
 void LCD_Display_Page_Load(){
@@ -207,11 +241,11 @@ void LCD_Display_Page_Setting_Level(){
 	setCursor(2,0);
 	print("Select Game Level");
 	setCursor(4,1);
-	print("Easy   : 1");
+	print("Easy   : 4");
 	setCursor(4,2);
-	print("Normal : 2");
+	print("Normal : 5");
 	setCursor(4,3);
-	print("Hard   : 3");
+	print("Hard   : 6");
 }
 void LCD_Display_Page_Game_Menu(){
 	setCursor(2, 0);
@@ -245,9 +279,7 @@ void LCD_Clear_Page_Menu(){
 	lcd_clear_area(page_menu_option_selector3);
 }
 void LCD_Clear_Page_Entering_Name(){
-	lcd_clear_static_squares(page_entering_name_static_squares,2);
-	lcd_clear_area(page_entering_name);
-	lcd_clear_area(page_entering_name_pointer);
+	clear();
 }
 void LCD_Clear_Page_Setting_Level(){
 	clear();
@@ -265,8 +297,99 @@ void LCD_Clear_Page_Load(){
 	lcd_clear_static_squares(page_load_static_squares,2);
 
 }
+void LCD_Update_Game_Boss(UpdatedEntity* ues){
+	int ue_id = -1;
+	if(ues[0].id < 0){
+		return;
+	}
 
+	int index = 0;
+	do{
+		ue_id = ues[index].id;
+		int col = get_lcd_col_from_game_col(ues[index].col);
+		int row = get_lcd_row_from_game_row(ues[index].row);
+		int type = ues[index].type;
+		int entity_type = ues[index].entity_type;
+		int action_type = ues[index].action_type;
+		if(action_type == INSERT){
+			if(type == EBoss){
+				setCursor(row, col);
+				if(entity_type == 1){
+					write(5);
+				}else if(entity_type == 2){
+					write(6);
+				}else if(entity_type == 3){
+					write(7);
+				}else if(entity_type == 4){
+					write(7);
+				}
+
+			}else if(type == EFire || type == EPlayerFire){
+				setCursor(row, col);
+				write(4);
+			}
+		}else if(action_type == DELETE){
+			setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
+			print(" ");
+		}else if(action_type == UPDATE){
+			if(type == EBoss){
+				setCursor(row, col);
+				if(entity_type == 1){
+					write(5);
+					setCursor(row+1,col);
+					print(" ");
+					if(col !=0){
+						setCursor(row,col-1);
+						print(" ");
+					}
+				}else if(entity_type == 2){
+					write(6);
+					setCursor(row+1,col);
+					print(" ");
+					if(col !=3){
+						setCursor(row,col+1);
+						print(" ");
+					}
+				}else if(entity_type == 3){
+					write(7);
+					setCursor(row-1,col);
+					print(" ");
+					if(col !=0){
+						setCursor(row,col-1);
+						print(" ");
+					}
+				}else if(entity_type == 4){
+					write(7);
+					setCursor(row-1,col);
+					print(" ");
+					if(col !=3){
+						setCursor(row,col+1);
+						print(" ");
+					}
+				}
+
+			}else if(type == EFire){
+				setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
+				write(4);
+				setCursor(row+1,col);
+				print(" ");
+			}else if(type == EPlayerFire){
+				setCursor(row, col); //map of game is vertical but map of LCD is corizontal.
+				write(4);
+				setCursor(row-1,col);
+				print(" ");
+
+			}
+		}
+		index++;
+	}while(ue_id != -1 && index < Max_Entity_In_Game);
+
+}
 void LCD_Update_Game_With_Enemy_Move(UpdatedEntity* ues){
+	if(ues[0].id < 0){
+		return;
+	}
+
 	int col_0_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
 	int col_1_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
 	int col_2_entities[20]={-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
@@ -377,6 +500,9 @@ void LCD_Update_Game_With_Enemy_Move(UpdatedEntity* ues){
 void LCD_Update_Game_Without_Enemy_Move(UpdatedEntity* ues){
 	int ue_id = -1;
 	int index = 0;
+	if(ues[0].id < 0){
+		return;
+	}
 	do{
 		int action_type = ues[index].action_type;
 		int col = get_lcd_col_from_game_col(ues[index].col);

@@ -40,7 +40,8 @@ const Tone menu_melody[]={
   {NOTE_A4, 2},
   {REST     ,4},
 };
-int wholenote_boss = 120000 / 85;
+int wholenote_boss = 120000 / 185;
+
 const Tone boss_melody[]={
   {NOTE_G4,8},
   {NOTE_C4,8},
@@ -174,6 +175,7 @@ const Tone boss_melody[]={
   {NOTE_AS5,16},
   {REST     ,4},
 };
+
 void Set_Rest_Melody(){
 	Change_Melody(rest_melody, wholenote_rest, ARRAY_LENGTH(rest_melody),0);
 }
@@ -182,7 +184,8 @@ void Set_Menu_Melody(){
 	Change_Melody(menu_melody, wholenote_menu, ARRAY_LENGTH(menu_melody),1);
 }
 void Set_Boss_Melody(){
-	Change_Melody(boss_melody, wholenote_boss, ARRAY_LENGTH(boss_melody),1);
+	int len = ARRAY_LENGTH(boss_melody);
+	Change_Melody(boss_melody, wholenote_boss,  len,1);
 }
 void Set_Kill_Effect(){
 	Change_Melody(kill_melody, wholenote_kill, ARRAY_LENGTH(kill_melody),0);

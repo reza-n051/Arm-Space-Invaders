@@ -12,6 +12,8 @@
 Player player;
 int is_player_fire = 0;
 
+Boss boss;
+
 int winner = 0; //enemy->-1 player->1
 
 int e_id_gen = 0; //id generator for enemy id
@@ -29,6 +31,8 @@ int enemy_count = 0;
 int player_fires_count = 0;
 int enemy_fires_count = 0;
 
+Fire boss_fires[Max_Fire_In_Game];
+int boss_fires_count=0;
 
 char game_level = 'E';
 
@@ -41,6 +45,7 @@ int handle_method_counter = 0;
 int is_player_kill_an_enemy;
 
 int is_game_end = 0;
+int is_non_boss_game_end = 0;
 
 /*
  * 1.movement of enemies and fires
@@ -50,16 +55,32 @@ int is_game_end = 0;
  * 5.check is game ended or not
  */
 
-
 int is_game_ended(){
+	if(is_non_boss_game_end == 0 ){
+		winner=0;
+		return 0;
+	}
+	if(boss.health == 0){
+		winner = 1;
+		return 1;
+	}
+	if( player.health == 0){
+		winner = -1;
+		return 1;
+
+	}
+	winner=0;
+	return 0;
+}
 /*
  * Game Ended When:
  * 1.player health become 0.
  * 2.enemies except boss reach to player
  * 3.player kills some enemies
  * (in normal level => 25, in easy level => 15 , in hard level => 35)
- *
+ * 4.boss killed
  */
+int is_non_boss_game_ended(){
 	if(player.health == 0){
 		winner = -1;
 		return 1;
@@ -75,9 +96,9 @@ int is_game_ended(){
 			(dead_enemies_count == 25 && game_level== 'N') ||
 			(dead_enemies_count == 35 && game_level== 'H')
 	){
-		winner = 1;
 		return 1;
 	}
+	winner=0;
 	return 0;
 
 }
@@ -129,16 +150,16 @@ Enemy select_enemy_for_fire(){
 	int selected_rows[4] = {rows_length,rows_length,rows_length,rows_length};
 	for(int i=0;i<enemy_count;i++){
 		if(enemies[i].col==0 && enemies[i].row<selected_rows[0]){
-			selected_idxs[0] = enemies[i].id;
+			selected_idxs[0] = i;
 			selected_rows[0] = enemies[i].row;
 		}else if(enemies[i].col==1 && enemies[i].row<selected_rows[1]){
-			selected_idxs[1] = enemies[i].id;
+			selected_idxs[1] = i;
 			selected_rows[1] = enemies[i].row;
 		}else if(enemies[i].col==2 && enemies[i].row<selected_rows[2]){
-			selected_idxs[2] = enemies[i].id;
+			selected_idxs[2] = i;
 			selected_rows[2] = enemies[i].row;
 		}else if(enemies[i].col==3 && enemies[i].row<selected_rows[3]){
-			selected_idxs[3] = enemies[i].id;
+			selected_idxs[3] = i;
 			selected_rows[3] = enemies[i].row;
 		}
 	}
@@ -171,20 +192,20 @@ int enemy_should_move_down(){
 }
 
 
-Fire create_fire_for_player(int row,int col,int power){
-	Fire f = {
-		row,col,-1,power
-	};
-	int index = -1;
-	for(int i=0 ; i< Max_Fire_In_Game ; i++){
-		if(player_fires[i].id != -1){
-			index = i;
-			break;
-		}
-	}
-	f.id = index;
-	return f;
-}
+//Fire create_fire_for_player(int row,int col,int power){
+//	Fire f = {
+//		row,col,-1,power
+//	};
+//	int index = -1;
+//	for(int i=0 ; i< Max_Fire_In_Game ; i++){
+//		if(player_fires[i].id != -1){
+//			index = i;
+//			break;
+//		}
+//	}
+//	f.id = index;
+//	return f;
+//}
 
 
 int is_enemy_should_creat(){
@@ -323,17 +344,255 @@ void delete_fire_from_player_fires(int i){
 	}
 	player_fires_count--;
 }
+Fire is_player_shoot_boss(){
+	for(int i=0;i< Max_Fire_In_Game ;i++){
+		if((player_fires[i].col == boss.col || player_fires[i].col == boss.col+1) && player_fires[i].row+2 == boss.row){
+			return player_fires[i];
+		}
+	}
+	return (Fire) {-1,-1,-1,1};
 
-int SI_Is_Enemies_Move_Down(){
-	return is_enemies_move_down;
+}
+Fire is_boss_shoot_player(){
+	int player_col = player.col;
+	int player_row = player.row;
+	for(int i=0;i< Max_Fire_In_Game ;i++){
+		if(boss_fires[i].col == player_col && boss_fires[i].row-1 == player_row){
+			return boss_fires[i];
+		}
+	}
+	return (Fire) {-1,-1,-1,1};
+
+}
+void delete_fire_from_boss_fires(int i){
+	if(i == boss_fires_count - 1){
+		boss_fires[i] = (Fire) {-1,-1,-1,-1};
+	}else{
+		int col = boss_fires[boss_fires_count - 1].col;
+		int row = boss_fires[boss_fires_count - 1].row;
+		int fp  = boss_fires[boss_fires_count - 1].fire_power;
+		int id  = boss_fires[boss_fires_count - 1].id;
+		boss_fires[i] = (Fire) {row,col,id,fp};
+		boss_fires[boss_fires_count - 1] = (Fire) {-1,-1,-1,-1};
+
+	}
+	boss_fires_count--;
+
+}
+int is_boss_should_fire(){
+	if(
+			(game_level == 'H' && (handle_method_counter * handle_timer ) % 1210 != 0 )||
+			(game_level == 'N' && (handle_method_counter * handle_timer ) % 1420 != 0 )||
+			(game_level == 'E' && (handle_method_counter * handle_timer ) % 1850 != 0 )
+	){
+		return 0;
+	}
+
+	if(
+			(handle_method_counter * handle_timer ) % 1000 == 0
+	){
+		return 0;
+	}
+
+	if(boss_fires_count>Max_Fire_In_Game-1){
+		return 0;
+	}
+	boss_fires_count++;
+	return 1;
+
 }
 
-UpdatedEntity* SI_Get_Updated_Entities(){
-	return ues;
+int is_boss_should_move(){
+	if(
+			((handle_method_counter * handle_timer ) % 1200 == 0 && game_level=='E') ||
+			((handle_method_counter * handle_timer ) % 900 == 0 && game_level=='N') ||
+			((handle_method_counter * handle_timer ) % 400 == 0 && game_level=='H')
+	){
+		int r = rand() % 4;
+		return r+1;
+	}
+	return 0;
 }
+void SI_Handle_Boss_Game(){
+	//50 ms
+	if((handle_method_counter * handle_timer ) % 10000 == 0){
+		int xx=10;
+		xx=5;
+	}
+	clear_updated_entities();
+	Fire shooted_fire = is_boss_shoot_player();
+	if(shooted_fire.id != -1){
+		for(int i=0;i<boss_fires_count;i++){
+			if(boss_fires[i].id == shooted_fire.id){
+				player.health-=2;
+				delete_fire_from_boss_fires(i);
+				add_entity_to_updated_entities(
+						shooted_fire.id,
+						shooted_fire.row,
+						shooted_fire.col,
+						EFire, 1, DELETE
+				);
+			}
+		}
+	}
 
+	for(int i=0;i< boss_fires_count;i++){
+		if( boss_fires[i].row <= 0){
+			int g_row = boss_fires[i].row;
+			int g_col = boss_fires[i].col;
+			int g_id =  boss_fires[i].id;
+			delete_fire_from_boss_fires(i);
+			add_entity_to_updated_entities(g_id,g_row,g_col, EFire,1,DELETE);
+		}
+	}
+	Fire shooted_fire2 = is_player_shoot_boss();
+	if(shooted_fire2.id != -1){
+		for(int i=0;i<player_fires_count;i++){
+			if(player_fires[i].id == shooted_fire2.id){
+				delete_fire_from_player_fires(i);
+				add_entity_to_updated_entities(
+						shooted_fire2.id,
+						shooted_fire2.row,
+						shooted_fire2.col,
+						EPlayerFire,1,DELETE
+				);
+			}
+		}
+		boss.health--;
+	}
+	for(int i=0;i<player_fires_count;i++){
+		if(player_fires[i].row >= 19){
+			int g_row = player_fires[i].row;
+			int g_col = player_fires[i].col;
+			int g_id = player_fires[i].id;
+			delete_fire_from_player_fires(i);
+			add_entity_to_updated_entities(g_id ,g_row ,g_col ,EPlayerFire,1,DELETE);
+		}
+	}
+
+	if((handle_method_counter * handle_timer ) % 100 == 0){
+		for (int i=0 ; i< Max_Fire_In_Game ; i++){
+			if(player_fires[i].id != -1){
+				player_fires[i].row++;
+				int id = player_fires[i].id;
+				int col = player_fires[i].col;
+				int row = player_fires[i].row;
+				add_entity_to_updated_entities(id,row,col,EPlayerFire,1,UPDATE);
+
+			}
+		}
+	}
+
+	if((handle_method_counter * handle_timer ) % 100 == 0){
+		for (int i=0 ; i< Max_Fire_In_Game ; i++){
+			if(boss_fires[i].id != -1){
+				boss_fires[i].row--;
+				int id = boss_fires[i].id;
+				int col = boss_fires[i].col;
+				int row = boss_fires[i].row;
+				add_entity_to_updated_entities(id,row,col,EFire,1,UPDATE);
+			}
+		}
+	}
+
+
+	if(is_boss_should_fire()){
+		for (int i=0 ; i< Max_Fire_In_Game ; i++){
+			if(boss_fires[i].id == -1){
+				int dir = rand() % 2;
+				if(dir == 0 ){
+					boss_fires[i] = (Fire) {boss.row -2,boss.col+1,i,2};
+				}else{
+					boss_fires[i] = (Fire) {boss.row -2,boss.col,i,2};
+				}
+				boss_fires_count++;
+				add_entity_to_updated_entities(
+						boss_fires[i].id,
+						boss_fires[i].row,
+						boss_fires[i].col,
+						EFire,1,INSERT
+				);
+				break;
+			}
+		}
+	}
+
+	if(is_player_fire == 1){
+		is_player_fire = 0;
+		for (int i=0 ; i< Max_Fire_In_Game ; i++){
+			if(player_fires[i].id == -1){
+				player_fires[i].id = i;
+				player_fires[i].col = player.col;
+				player_fires[i].row = player.row +1;
+				player_fires[i].fire_power = player.fire_power;
+				player_fires_count++;
+				add_entity_to_updated_entities(
+						player_fires[i].id,
+						player_fires[i].row,
+						player_fires[i].col,
+						EPlayerFire, 1, INSERT
+				);
+				break;
+			}
+		}
+	}
+	int move = is_boss_should_move();
+    if(move == 1){
+    	if(boss.col<2){
+        	boss.col++;
+    	}
+    }else if(move == 2){
+    	if(boss.col>0){
+			boss.col--;
+    	}
+    }else if(move == 3){
+    	if(boss.row<16){
+    		boss.row++;
+    	}
+    }else if(move == 4){
+    	if(boss.row>10){
+    		boss.row--;
+    	}
+    }
+    if(move ==1 ||move ==2 ||move ==3 ||move ==4){
+		add_entity_to_updated_entities(
+				1,
+				boss.row,
+				boss.col,
+				EBoss,1,UPDATE
+		);
+		add_entity_to_updated_entities(
+				1,
+				boss.row,
+				boss.col+1,
+				EBoss,2,UPDATE
+		);
+		add_entity_to_updated_entities(
+				1,
+				boss.row-1,
+				boss.col,
+				EBoss,3,UPDATE
+		);
+		add_entity_to_updated_entities(
+				1,
+				boss.row-1,
+				boss.col+1,
+				EBoss,4,UPDATE
+		);
+
+    }
+	if(is_game_ended()){
+		is_game_end = 1;
+	}
+	handle_method_counter++;
+
+}
 void SI_Handle_Game(){
 	//50 ms =>
+
+
+
+
 	is_player_kill_an_enemy= 0;
 	is_enemies_move_down = 0;
 	clear_updated_entities();
@@ -383,7 +642,7 @@ void SI_Handle_Game(){
 		for(int i=0 ; i < enemy_count ; i++){
 			if(enemies[i].id == e1.id){
 				enemies[i].health--;
-				if(enemies[i].health == 0){
+				if(enemies[i].health <= 0){
 					is_player_kill_an_enemy = 1;
 					int id = enemies[i].id;
 					int row = enemies[i].row;
@@ -500,9 +759,10 @@ void SI_Handle_Game(){
 		add_entity_to_updated_entities(e4.id,e4.row,e4.col,EEnemy,e4_type,INSERT);
 	}
 
-	if(is_game_ended()){
-		is_game_end = 1;
+	if(is_non_boss_game_ended()){
+		is_non_boss_game_end = 1;
 	}
+
 	handle_method_counter++;
 }
 
@@ -547,6 +807,7 @@ void SI_Init_Game(char gl,int handle_timer){
 	for(int i=0;i<Max_Fire_In_Game;i++){
 		player_fires[i] = (Fire) {-1,-1,-1,0};
 		enemy_fires[i]   = (Fire) {-1,-1,-1,0};
+		boss_fires[i] = (Fire) {-1,-1,-1,0};
 	}
 	int health_level = 7;
 	if(game_level == 'H'){
@@ -557,11 +818,17 @@ void SI_Init_Game(char gl,int handle_timer){
 	player = (Player) {
 		0,0,1,health_level,1
 	};
+	boss = (Boss){
+		15,1,30
+	};
 }
 
 
 int SI_Is_Game_Ended(){
 	return is_game_end;
+}
+int SI_Is_Non_Boss_Game_Ended(){
+	return is_non_boss_game_end;
 }
 int SI_Get_Winner(){
 	return winner;
@@ -583,4 +850,42 @@ int SI_Is_Player_Kill_Enemy(){
 }
 int SI_Get_Dead_Enemies(){
 	return dead_enemies_count;
+}
+int SI_Is_Enemies_Move_Down(){
+	return is_enemies_move_down;
+}
+
+UpdatedEntity* SI_Get_Updated_Entities(){
+	return ues;
+}
+
+void SI_Reset_Game(){
+	is_player_fire = 0;
+
+	winner = 0; //enemy->-1 player->1
+
+	e_id_gen = 0; //id generator for enemy id
+
+	dead_enemies_count = 0;
+
+	updated_counter = 0;
+	enemy_count = 0;
+	player_fires_count = 0;
+	enemy_fires_count = 0;
+
+	boss_fires_count=0;
+
+	game_level = 'E';
+
+	rows_length = 20;
+	cols_length = 4;
+
+	handle_timer = 50;
+	handle_method_counter = 0;
+
+	is_player_kill_an_enemy = 0;
+
+	is_game_end = 0;
+	is_non_boss_game_end = 0;
+
 }

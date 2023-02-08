@@ -9,7 +9,7 @@
 #include "keypad.h"
 // Input pull down rising edge trigger interrupt pins:
 // Row1 PD0, Row2 PD2, Row3 PD4, Row4 PD6
-const char k1[] = {'@','1'};
+//const char k1[] = {'@','1'};
 const char k2[] = {'a','b','c','2'};
 const char k3[] = {'d','e','f','3'};
 const char k5[] = {'g','h','i','4'};
@@ -19,6 +19,7 @@ const char k9[] = {'p','q','r','s','7'};
 const char k10[] = {'t','u','v','8'};
 const char k11[] = {'w','x','y','z','9'};
 const char k14[] = {' ','0'};
+const char k15[] = {'@','#','*','1'};
 GPIO_TypeDef *const Row_ports[] = {GPIOD, GPIOD, GPIOD, GPIOD};
 const uint16_t Row_pins[] = {GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIO_PIN_6};
 // Output pins: Column1 PD1, Column2 PD3, Column3 PD5, Column4 PD7
@@ -97,12 +98,15 @@ void Reset_PK(){
 }
 //prev_button_number == button_number || prev_button_number == 13 || prev_button_number == 15
 PKResult Handle_Phone_Keypad(uint8_t button_number){
-	if((prev_button_number != -1 && prev_button_number != button_number && (button_number != 15 && button_number != 13))){
+	if(button_number == 1){
+		return pkres;
+	}
+	if((prev_button_number != -1 && prev_button_number != button_number && (button_number != 8 && button_number != 13))){
 		//prev_button_number == -1 means ke karbar dar index jadidi hast ke tahala dokme nazade
 		// va age bezane meghdaresh tagheir mikone
 		return pkres;
 	}
-	if((prev_button_number == -1 && button_number == 15)){
+	if((prev_button_number == -1 && button_number == 8)){
 		//prev_button_number == -1 means ke karbar dar index jadidi hast ke tahala dokme nazade
 		// va age bezane meghdaresh tagheir mikone
 		return pkres;
@@ -112,9 +116,6 @@ PKResult Handle_Phone_Keypad(uint8_t button_number){
 	prev_button_number = button_number;
 	switch (button_number)
 	  {
-		case 1: //- 1
-			pkres.character[0] = k1[button_counter % 2];
-			break;
 		case 2: //a b c 2
 			pkres.character[0] = k2[button_counter % 4];
 			break;
@@ -145,10 +146,13 @@ PKResult Handle_Phone_Keypad(uint8_t button_number){
 		case 11: //w x y z 6
 			pkres.character[0] = k11[button_counter % 5];
 			break;
-		case 15: //accept
+		case 8:
 			if(pkres.character[0] != '.'){
 				pkres.is_accepted = 1;
 			}
+			break;
+		case 15: //accept
+			pkres.character[0] = k15[button_counter % 4];
 			break;
 		case 14: //space 0
 			pkres.character[0] = k14[button_counter % 2];

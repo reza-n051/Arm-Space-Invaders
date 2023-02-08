@@ -21,7 +21,8 @@ enum EntityType{
 	EPlayer=0,
 	EEnemy=1,
 	EPlayerFire=3,
-	EFire=2
+	EFire=2,
+	EBoss=4
 };
 typedef enum ActionType{
 	DELETE=1,
@@ -57,13 +58,18 @@ typedef struct Player{
 	int health;
 	int fire_power;
 } Player;
+typedef struct Boss{
+	int row;
+	int col;
+	int health;
+} Boss;
 
 typedef struct UpdatedEntity{
 	int row;
 	int col;
 	int id;
 	int type;//1=enemy 2=fire
-	int entity_type; //1=e1=f1 2=e2=f2 3=e3=f3
+	int entity_type; //1=e1=f1=b1 2=e2=f2=b2 3=e3=f3=b3 4=b4
 	int action_type;//delete=1 update=2 insert=3
 } UpdatedEntity;
 
@@ -79,16 +85,19 @@ void SI_Move_Player(MoveDirection md);
 void SI_Shoot_Player();
 
 void SI_Handle_Game();
-
+void SI_Handle_Boss_Game();
 UpdatedEntity* SI_Get_Updated_Entities();
 
 int SI_Get_Player_Col();
 
 int SI_Is_Game_Ended();
+int SI_Is_Non_Boss_Game_Ended();
+
 int SI_Get_Dead_Enemies();
 int SI_Get_Remained_Enemies_Killings_For_Winnig();
 int SI_Get_Player_Health();
 int SI_Is_Player_Kill_Enemy();
 int SI_Get_Winner();
 int SI_Is_Enemies_Move_Down();
+void SI_Reset_Game();
 #endif /* INC_GAME_H_ */

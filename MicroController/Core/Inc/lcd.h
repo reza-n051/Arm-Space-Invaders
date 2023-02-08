@@ -29,6 +29,7 @@ void LCD_Clear_Page_End();
 void LCD_Clear_Player_Name();
 
 void LCD_Update_Game(UpdatedEntity* ues);
+void LCD_Update_Game_Boss(UpdatedEntity* ues);
 void LCD_Update_Game_With_Enemy_Move(UpdatedEntity* ues);
 void LCD_Update_Game_Without_Enemy_Move(UpdatedEntity* ues);
 void LCD_Update_Game_Player(int col,int prev_col);
