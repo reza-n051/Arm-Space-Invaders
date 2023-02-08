@@ -692,7 +692,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	if(hadc->Instance == ADC2){
 		int raw_volume = HAL_ADC_GetValue(&hadc2);
-		int volume = (raw_volume - 849) * 25 / (4095-770);
+		int volume = (raw_volume - 859) * 25 / (4095-770);
 		PWM_Set_Volume(volume);
 		 HAL_ADC_Start_IT(&hadc2);
 	}

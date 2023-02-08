@@ -60,11 +60,12 @@ int is_game_ended(){
 		winner=0;
 		return 0;
 	}
-	if(boss.health == 0){
+	if(boss.health <= 0){
+		dead_enemies_count++;
 		winner = 1;
 		return 1;
 	}
-	if( player.health == 0){
+	if( player.health <= 0){
 		winner = -1;
 		return 1;
 
