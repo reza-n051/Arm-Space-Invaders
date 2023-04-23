@@ -4,4 +4,4 @@ Space Invaders in microcontroller(ARM microcontroller STM32F303VCT6 Discovery Ki
 
 ## Demo
 
-![demo gif](/demo.mp4)
+![demo gif](/avc_demo1.mp4)
